@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Roleplay</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a1a; color: #fff; min-height: 100vh; overflow: hidden; }
+        .app-container { max-width: 480px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; background: linear-gradient(145deg, #0a0a1a 0%, #14142e 100%); }
+        .header { padding: 20px 16px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(45deg, #a78bfa, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header .badge { background: #6c5ce7; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .page { display: none; flex-direction: column; height: 100%; }
+        .page.active { display: flex; }
+        .character-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 20px 16px; overflow-y: auto; }
+        .char-card { background: #1a1a3a; border-radius: 16px; padding: 20px 12px; text-align: center; border: 1px solid #2a2a4a; cursor: pointer; transition: all 0.2s; }
+        .char-card:active { transform: scale(0.96); background: #2a2a5a; }
+        .char-card .emoji { font-size: 40px; display: block; margin-bottom: 8px; }
+        .char-card .name { font-weight: 600; font-size: 16px; }
+        .char-card .category { font-size: 12px; color: #888; margin-top: 4px; }
+        .chat-header { padding: 12px 16px; background: rgba(255,255,255,0.03); border-bottom: 1px solid #1a1a3a; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+        .chat-header .back-btn { background: none; border: none; color: #a78bfa; font-size: 24px; cursor: pointer; }
+        .chat-header .info { flex: 1; }
+        .chat-header .info .cname { font-weight: 600; }
+        .chat-header .info .cstatus { font-size: 12px; color: #6c5ce7; }
+        .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+        .msg { max-width: 85%; padding: 10px 14px; border-radius: 18px; font-size: 15px; line-height: 1.4; word-wrap: break-word; }
+        .msg.user { align-self: flex-end; background: #6c5ce7; border-bottom-right-radius: 4px; }
+        .msg.bot { align-self: flex-start; background: #1e1e3a; border-bottom-left-radius: 4px; }
+        .msg.bot .name-tag { font-size: 11px; color: #a78bfa; font-weight: 600; margin-bottom: 4px; }
+        .input-area { padding: 12px 16px; background: #0f0f25; border-top: 1px solid #1a1a3a; display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+        .input-area input { flex: 1; background: #1a1a3a; border: none; padding: 12px 16px; border-radius: 25px; color: #fff; font-size: 15px; outline: none; }
+        .input-area input::placeholder { color: #666; }
+        .input-area button { background: #6c5ce7; border: none; color: #fff; width: 44px; height: 44px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .input-area button:active { transform: scale(0.9); }
+        .input-area .gen-btn { background: #ec4899; font-size: 14px; width: auto; padding: 0 16px; border-radius: 25px; gap: 4px; }
+        .typing-indicator { display: flex; gap: 4px; padding: 10px 14px; background: #1e1e3a; border-radius: 18px; align-self: flex-start; }
+        .typing-indicator span { width: 8px; height: 8px; background: #888; border-radius: 50%; animation: bounce 1.2s infinite ease-in-out; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-10px); } }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="header"><h1>✨ AI Roleplay</h1><span class="badge">18+</span></div>
+    <div id="page-characters" class="page active">
+        <div style="padding: 8px 16px 4px; color: #888; font-size: 13px;">ဇာတ်ကောင်တစ်ယောက်ကို ရွေးပါ</div>
+        <div class="character-grid" id="charGrid"></div>
+    </div>
+    <div id="page-chat" class="page">
+        <div class="chat-header">
+            <button class="back-btn" id="backToChars">‹</button>
+            <div class="info"><div class="cname" id="chatCharName">Character</div><div class="cstatus">● Online</div></div>
+            <button id="genImageBtn" style="background: #ec4899; border: none; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer;">🖼️ Generate</button>
+        </div>
+        <div class="messages" id="messageContainer">
+            <div class="msg bot"><div class="name-tag">🤖 System</div>ဇာတ်ကောင်တစ်ယောက်ကို ရွေးပြီး စကားစပြောပါ။</div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="စာရိုက်ပါ..." />
+            <button id="sendBtn">➤</button>
+            <button class="gen-btn" id="quickGenBtn">🎨</button>
+        </div>
+    </div>
+</div>
+<script>
+    const tg = window.Telegram.WebApp; tg.ready(); tg.expand();
+    const userId = tg.initDataUnsafe?.user?.id || 'anonymous';
+    let currentCharacter = null, isWaiting = false;
+    const characters = [
+        { id: 'elara', name: 'Elara', emoji: '🧝‍♀️', category: 'Fantasy' },
+        { id: 'katie', name: 'Katie', emoji: '👩', category: 'Modern' },
+        { id: 'luna', name: 'Luna', emoji: '🌙', category: 'Dark Fantasy' },
+        { id: 'rin', name: 'Rin', emoji: '🌸', category: 'Anime' },
+        { id: 'selene', name: 'Selene', emoji: '🧜‍♀️', category: 'Fantasy' }
+    ];
+    const charGrid = document.getElementById('charGrid');
+    characters.forEach(char => {
+        const card = document.createElement('div'); card.className = 'char-card';
+        card.innerHTML = `<span class="emoji">${char.emoji}</span><div class="name">${char.name}</div><div class="category">${char.category}</div>`;
+        card.onclick = () => selectCharacter(char);
+        charGrid.appendChild(card);
+    });
+    function showPage(id) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+    function selectCharacter(char) {
+        currentCharacter = char;
+        document.getElementById('chatCharName').innerText = `${char.emoji} ${char.name}`;
+        document.getElementById('messageContainer').innerHTML = `<div class="msg bot"><div class="name-tag">${char.emoji} ${char.name}</div>ဟေ့... မင်းကို ငါစောင့်နေတာ~ 💕</div>`;
+        sendToBot({ type: 'select_character', character: char.id, user_id: userId });
+        showPage('page-chat');
+    }
+    function sendMessage() {
+        const input = document.getElementById('messageInput'); const text = input.value.trim();
+        if (!text || isWaiting) return; input.value = '';
+        addMessage(text, 'user');
+        sendToBot({ type: 'chat_message', character: currentCharacter.id, message: text, user_id: userId });
+        showTyping(true);
+    }
+    function generateImage() {
+        if (!currentCharacter) return;
+        const lastUserMsg = document.querySelector('.msg.user:last-child');
+        let prompt = lastUserMsg ? lastUserMsg.innerText : 'beautiful woman, nsfw, realistic';
+        prompt = prompt.replace(/^.*?: /, '').substring(0, 100);
+        sendToBot({ type: 'generate_image', character: currentCharacter.id, prompt: prompt, user_id: userId });
+        addMessage(`⏳ "${prompt}" အတွက် ပုံထုတ်နေပါပြီ...`, 'bot');
+        showTyping(true);
+    }
+    function addMessage(text, sender) {
+        const container = document.getElementById('messageContainer');
+        const div = document.createElement('div'); div.className = `msg ${sender}`;
+        if (sender === 'bot') div.innerHTML = `<div class="name-tag">${currentCharacter ? currentCharacter.emoji + ' ' + currentCharacter.name : 'Bot'}</div>${text}`;
+        else div.innerText = text;
+        container.appendChild(div); container.scrollTop = container.scrollHeight;
+    }
+    function showTyping(show) {
+        const container = document.getElementById('messageContainer');
+        const existing = container.querySelector('.typing-indicator');
+        if (existing) existing.remove();
+        if (show) { isWaiting = true; const div = document.createElement('div'); div.className = 'typing-indicator'; div.innerHTML = '<span></span><span></span><span></span>'; container.appendChild(div); container.scrollTop = container.scrollHeight; }
+        else isWaiting = false;
+    }
+    function sendToBot(data) { try { tg.sendData(JSON.stringify(data)); } catch (e) { addMessage('⚠️ Connection error. Please try again.', 'bot'); showTyping(false); } }
+    document.getElementById('sendBtn').addEventListener('click', sendMessage);
+    document.getElementById('messageInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+    document.getElementById('backToChars').addEventListener('click', () => { showPage('page-characters'); currentCharacter = null; });
+    document.getElementById('quickGenBtn').addEventListener('click', generateImage);
+    document.getElementById('genImageBtn').addEventListener('click', generateImage);
+    console.log('Mini App ready for', userId);
+</script>
+</body>
+</html>
